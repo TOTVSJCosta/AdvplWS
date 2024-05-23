@@ -1,13 +1,23 @@
 #include "totvs.ch"
 #include "apWebSRV.ch"
 
+WSSTRUCT endereco
+    WSDATA logradouro   AS String
+    WSDATA numero       AS Integer OPTIONAL
+    WSDATA cep          AS String
+    WSDATA bairro       AS String
+    WSDATA cidade       AS String
+    WSDATA uf           AS String
+    WSDATA ibge         AS String OPTIONAL
+ENDWSSTRUCT
+
 WSSTRUCT ClienteDef
     WSDATA codigo    AS String
     WSDATA loja      AS String
     WSDATA nome      AS String
     WSDATA tipo      AS String
     WSDATA cnpj_cpf  AS String
-    WSDATA endereco  AS String
+    WSDATA endereco  AS endereco
 ENDWSSTRUCT
 
 WSSTRUCT ItemPV
@@ -75,7 +85,30 @@ WSMETHOD GetClientes WSSEND clientes WSRECEIVE CNPJ_CPF,codigo,loja WSSERVICE Ad
         aTail(clientes):loja     := (cAlias)->A1_LOJA
         aTail(clientes):nome     := rtrim((cAlias)->A1_NOME)
         aTail(clientes):tipo     := rtrim((cAlias)->A1_PESSOA)
-        aTail(clientes):endereco := rtrim((cAlias)->A1_END)
+        aTail(::clientes):endereco := WsClassNew("endereco")
+        aTail(::clientes):endereco:logradouro := rtrim((cAlias)->A1_END)
+        aTail(::clientes):endereco:cep := rtrim((cAlias)->A1_END)
+        aTail(::clientes):endereco:bairro := rtrim((cAlias)->A1_END)
+        aTail(::clientes):endereco:cidade := rtrim((cAlias)->A1_END)
+        aTail(::clientes):endereco:uf := rtrim((cAlias)->A1_END) 
+
+        aTail(::clientes):JSON     := jsonObject():New()
+        aTail(::clientes):JSON["codigo"]   := (cAlias)->A1_COD
+        aTail(::clientes):JSON["loja"]     := (cAlias)->A1_LOJA
+        aTail(::clientes):JSON["pessoa"]   := (cAlias)->A1_PESSOA
+        aTail(::clientes):JSON["nome"]     := rtrim((cAlias)->A1_NOME)
+        aTail(::clientes):JSON["cnpj_cpf"] := (cAlias)->A1_CGC
+        aTail(::clientes):JSON     := aTail(::clientes):JSON:toJSON()
+        BEGINCONTENT VAR cWhere
+            {
+                'cnpj_cpf': '%Exp:aTail(::clientes):cnpj_cpf%',
+                'codigo': '%Exp:aTail(::clientes):codigo%',
+                'loja': '%Exp:aTail(::clientes):loja%',
+                'nome': '%Exp:aTail(::clientes):nome%',
+                'tipo': '%Exp:aTail(::clientes):tipo%'
+            }
+        ENDCONTENT
+        aTail(::clientes):JSON := strtran(cWhere, chr(10))
         (cAlias)->(dbSkip())
     end
     (cAlias)->(dbCloseArea())
